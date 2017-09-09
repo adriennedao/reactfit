@@ -2,42 +2,57 @@ import React, { Component } from 'react'
 import ReactDOM from 'react-dom'
 import 'bootstrap/dist/css/bootstrap.css'
 import axios from 'axios'
+import LifetimeStats from './lifetimeStats'
+import Badges from './Badges'
+import dummyData from './dummyData'
+import TimeSeriesBarChart from './TimeSeriesBarChart'
+import Friends from './Friends'
+
+
+const CLIENT_ID = '228M25'
 
 class Dashboard extends Component {
   constructor(props) {
     super(props)
-    this.state = {
-      user: {},
-      loggedIn: false,
-      lifetimeBest: {steps: "", distance: ""},
-      lifetimeTotals: {steps: "", distance: ""}
-    }
+    this.state = dummyData
+  }
+
+    fetchFitbitData (url, fitbitToken, stateKey) {
+    axios({
+      method: 'get',
+      url: 'https://api.fitbit.com/1/user/-/profile.json',
+      headers: { 'Authorization': 'Bearer ' + fitbitToken },
+      mode: 'cors'
+    })
+    .then(response => {
+      console.log(response)
+      this.setState({[stateKey]: response.data})
+    })
+    .catch(error => console.log(error))
   }
 
   componentDidMount () {
     if(window.location.hash) {
       let fitbitToken = window.location.hash.slice(1).split("&")[0].replace("access_token=", "")
-      console.log(fitbitToken)
 
-      axios({
-        method: 'get',
-        url: 'https://api.fitbit.com/1/user/-/profile.json',
-        headers: { 'Authorization': 'Bearer ' + fitbitToken },
-        mode: 'cors'
-      })
-      .then(response => {
-        console.log(response)
-        this.setState({lifetimeBest: response.data.best.total, lifetimeTotals: response.data.lifetime.total})
-      })
-      .catch(error => console.log(error))
-      }
+      this.setState({loggedIn: true})
+
+      this.fetchFitbitData('https://api.fitbit.com/1/user/-/profile.json', fitbitToken, 'user')
+      this.fetchFitbitData('https://api.fitbit.com/1/user/-/activities.json', fitbitToken, 'lifetimeStats')
+      this.fetchFitbitData('https://api.fitbit.com/1/user/-/badges.json', fitbitToken, 'badges')
+      this.fetchFitbitData('https://api.fitbit.com/1/user/-/activities/steps/date/2014-04-30/1m.json', fitbitToken, 'steps')
+      this.fetchFitbitData('https://api.fitbit.com/1/user/-/activities/distance/date/2014-04-30/1m.json', fitbitToken, 'distance')
+      this.fetchFitbitData('https://api.fitbit.com/1/user/-/friends/leaderboard.json', fitbitToken, 'friends')
+
     }
+  }
+
 
   render () {
     return (
       <div className="container">
         <header className="text-center">
-          <span className="pull-right">{this.state.user.displayName}</span>
+          <span className="pull-right">{this.state.user.user.displayName}</span>
           <h1 className="page-header">React Fit</h1>
           <p className="lead">Your personal fitness dashboard</p>
         </header>
@@ -49,42 +64,25 @@ class Dashboard extends Component {
             </a>
           </div>
         }
+
         <div className="row">
           <div className="col-lg-3">
-            <div className="panel panel-default">
-              <div className="panel-heading"><h4>Lifetime Stats</h4></div>
-              <div className="panel-body">
-                <h4>Steps:</h4>
-                <p>Total: {this.state.lifetimeTotals.steps}</p>
-                <p>Best: {this.state.lifetimeBest.steps}</p>
-            </div>
+            <LifetimeStats lifetimeStats={this.state.lifetimeStats} />
+            <Badges badges={this.state.badges.badges} />
         </div>
-
-        <div className="panel panel-default">
-          <div className="panel-heading"><h4>Badges</h4></div>
-          <div className="panel-body">
-          </div>
-        </div>
-      </div>
 
       <div className="col-lg-6">
-        <div className="panel panel-default">
-          <div className="panel-heading">Steps</div>
-      </div>
+        <TimeSeriesBarChart data={this.state.steps["activities-steps"]} title="Steps" yMax={8000} />
 
-      <div className="panel panel-default">
-        <div className="panel-heading">Distance (miles)</div>
+        <TimeSeriesBarChart data={this.state.distance["activities-distance"]} title="Distance (miles)" yMax={6} />
       </div>
-
-    </div>
 
       <div className="col-lg-2 col-lg-offset-1">
-        <div className="panel panel-default">
-          <div className="panel-heading">Your Friends</div>
-        </div>
+        <Friends friends={this.state.friends.friends} />
+      </div>
+
       </div>
     </div>
-  </div>
     )
   }
 }
